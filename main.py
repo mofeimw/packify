@@ -3,14 +3,36 @@ from urllib.parse import urlencode
 import base64
 import webbrowser
 from datetime import datetime
+import os
 
 def main():
+    # set up filesystem
+    fs_setup()
+
     # create app in spotify developer dashboard for auth info
     # auth() with client_id & client_secret
     # token = auth(REDACTED, REDACTED)
 
     # extract data with obtained token
     extract(token)
+
+def fs_setup():
+    # make sure export dir does not exist and then create folder hierarchy
+    if os.path.exists("export"):
+        print("error: export directory exists already")
+        exit(1)
+
+    os.mkdir("export")
+    os.mkdir("export/images")
+    os.mkdir("export/playlists")
+    os.mkdir("export/css")
+
+    fs_write("export/css/playlist.css", PLAYLIST_CSS)
+
+def fs_write(file, content):
+    f = open(file, "w")
+    f.write(content)
+    f.close()
 
 def auth(client_id, client_secret):
     auth_headers = {
@@ -43,7 +65,7 @@ def auth(client_id, client_secret):
     try:
         token = r.json()["access_token"]
     except:
-        print("Invalid Auth Code")
+        print("error: invalid auth code")
         exit(1)
 
     return token
@@ -70,7 +92,16 @@ def index_playlists(headers):
 
         for playlist in playlists["items"]:
             # print(playlist["name"] + " [" + str(playlist["tracks"]["total"]) + "]")
-            index.append([playlist["name"], playlist["tracks"]["total"], playlist["description"], playlist["tracks"]["href"]])
+            html = TEMPLATE1 + "<title>" + playlist["name"] + "</title>" + TEMPLATE2
+            html += "<img id=\"art\" src=\"../images/" + str(i) + ".jpg" + "\">"
+            html += "<div id=\"title-desc\">"
+            html += "<h1>" + playlist["name"] + "</h1>"
+            if (playlist["description"] != ""):
+                html += "<h2>" + playlist["description"] + "</h2>"
+            html += TEMPLATE3
+            # download cover art
+            dl_art(playlist["images"][0]["url"], i)
+            index.append([playlist["name"], playlist["tracks"]["total"], playlist["description"], playlist["tracks"]["href"], html, i])
             i += 1
 
         cycle += 1
@@ -79,10 +110,16 @@ def index_playlists(headers):
 
     return index
 
+def dl_art(url, i):
+    data = requests.get(url).content
+    f = open("export/images/" + str(i) + ".jpg", "wb")
+    f.write(data)
+    f.close()
+
 def process_songs(headers, index):
-    # [name, length, description, tracks href]
+    # [name, length, description, tracks_href, html, i]
     for playlist in index:
-        #title
+        # title
         print(playlist[0])
         # description
         if playlist[2] != "":
@@ -101,6 +138,7 @@ def process_songs(headers, index):
             songs_params = { "limit": 50, "offset": 50*cycle }
             songs = requests.get(playlist[3], params=songs_params, headers=headers).json()
             for song in songs["items"]:
+                song_html = "<ul class=\"song\">"
                 name = song["track"]["name"]
                 album = song["track"]["album"]["name"]
                 added_at = song["added_at"]
@@ -117,14 +155,115 @@ def process_songs(headers, index):
                 date_object = datetime.strptime(added_at, "%Y-%m-%dT%H:%M:%SZ")
                 date_added = date_object.strftime("%-m/%d/%y")
 
+                # print to stdout
                 print(name, end=" - ")
                 print(album, end=" - ")
                 print(artists, end=" - ")
                 print(date_added)
 
+                # and append to html
+                song_html += "<li>" + name + "</li>"
+                song_html += "<li>" + album + "</li>"
+                song_html += "<li>" + artists + "</li>"
+                song_html += "<li>" + date_added + "</li>"
+                song_html += "</ul>"
+                playlist[4] += song_html
+
                 j += 1
             cycle += 1
         print()
+        playlist[4] += TEMPLATE4
+        file_path = os.path.join("export", "playlists", str(playlist[5]) + ".html")
+        fs_write(file_path, playlist[4])
+
+TEMPLATE1 = """
+<!DOCTYPE html>
+<html>
+    <head>
+"""
+# title goes here
+TEMPLATE2 = """
+        <link rel="stylesheet" href="../css/playlist.css">
+    </head>
+    <body>
+        <div id="header">
+"""
+# cover art, and then title and description go here
+TEMPLATE3 = """
+            </div>
+        </div>
+        <div id="songs">
+            <ul id="headers" class="song">
+                <li>Title</li>
+                <li>Artist</li>
+                <li>Album</li>
+                <li>Date</li>
+            </ul>
+"""
+# songs go here
+TEMPLATE4 = """
+        </div>
+    </body>
+</html>
+"""
+
+PLAYLIST_CSS = """
+body {
+    font-family: helvetica, sans-serif;
+    letter-spacing: 0.02rem;
+    padding: 3rem 5rem;
+    background-color: #CCCCFF;
+    color: #1a1a2e;
+}
+
+#art {
+    display: inline-block;
+    width: 200px;
+    height: 200px;
+}
+
+#header #title-desc {
+    display: inline-block;
+    margin-left: 2rem;
+    margin-bottom: 1rem;
+}
+
+#header #title-desc h1 {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+}
+
+#header #title-desc h2 {
+    font-size: 1.3rem;
+    margin-top: 0;
+}
+
+.song {
+    padding: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.song li {
+    display: inline-block;
+    margin-bottom: 1rem;
+    margin-right: 4rem;
+    font-size: 1rem;
+    text-align: left;
+    width: 50%;
+}
+
+.song li:nth-child(4) {
+    width: 10%;
+    margin-right: 0;
+}
+
+#headers li {
+    font-weight: bold;
+    font-size: 1.15rem;
+}
+"""
 
 if __name__ == "__main__":
     main()
