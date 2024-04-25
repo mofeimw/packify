@@ -2,6 +2,7 @@ import requests
 from urllib.parse import urlencode
 import base64
 import webbrowser
+from datetime import datetime
 
 def main():
     # create app in spotify developer dashboard for auth info
@@ -100,17 +101,27 @@ def process_songs(headers, index):
             songs_params = { "limit": 50, "offset": 50*cycle }
             songs = requests.get(playlist[3], params=songs_params, headers=headers).json()
             for song in songs["items"]:
-                # name
-                print(song["track"]["name"], end=" - ")
+                name = song["track"]["name"]
+                album = song["track"]["album"]["name"]
+                added_at = song["added_at"]
+                artists = ""
                 # cycle through artists
                 z = 0
                 num_artists = len(song["track"]["artists"])
                 while z < num_artists:
-                    print(song["track"]["artists"][z]["name"], end="")
+                    artists += song["track"]["artists"][z]["name"]
                     if (z != num_artists - 1):
-                        print(", ", end="")
+                        artists += ", "
                     z += 1
-                print()
+                # process date
+                date_object = datetime.strptime(added_at, "%Y-%m-%dT%H:%M:%SZ")
+                date_added = date_object.strftime("%-m/%d/%y")
+
+                print(name, end=" - ")
+                print(album, end=" - ")
+                print(artists, end=" - ")
+                print(date_added)
+
                 j += 1
             cycle += 1
         print()
