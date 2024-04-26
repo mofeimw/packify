@@ -202,8 +202,8 @@ TEMPLATE3 = """
         <div id="songs">
             <ul id="headers" class="song">
                 <li>Title</li>
-                <li>Artist</li>
                 <li>Album</li>
+                <li>Artist</li>
                 <li>Date</li>
             </ul>
 """
