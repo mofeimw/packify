@@ -25,9 +25,8 @@ def fs_setup():
     os.mkdir("export")
     os.mkdir("export/images")
     os.mkdir("export/playlists")
-    os.mkdir("export/css")
 
-    fs_write("export/css/playlist.css", PLAYLIST_CSS)
+    fs_write("export/main.css", CSS)
 
 def fs_write(file, content):
     f = open(file, "w")
@@ -81,8 +80,11 @@ def extract(token):
 
 def index_playlists(headers):
     index = []
+    index_html = TEMPLATE1 + TEMPLATE5 + "<link rel=\"stylesheet\" href=\"main.css\">"
+
     playlist_params = { "limit": 50, "offset": 0 } # apparently the limit is 100... but 50 for playlists? use offset to scroll thru
     playlists = requests.get("https://api.spotify.com/v1/me/playlists", params=playlist_params, headers=headers).json()
+
     n = playlists["total"]
     cycle = 0
     i = 0
@@ -98,16 +100,22 @@ def index_playlists(headers):
             html += "<h1>" + playlist["name"] + "</h1>"
             if (playlist["description"] != ""):
                 html += "<h2>" + playlist["description"] + "</h2>"
+                html += "<style>#header #title-desc { transform: translateY(-25px); }</style>"
             html += TEMPLATE3
             # download cover art
             dl_art(playlist["images"][0]["url"], i)
+
             index.append([playlist["name"], playlist["tracks"]["total"], playlist["description"], playlist["tracks"]["href"], html, i])
+            index_html += "<li class=\"playlist\"><img src=\"images/" + str(i) + ".jpg" + "\"><a href=\"playlists/" + str(i) + ".html\">" + playlist["name"] + "</a></li>\n"
+
             i += 1
 
         cycle += 1
     # print("\n[i: " + str(i) + " // n (total): " + str(n) + "]")
     # print()
 
+    index_html += TEMPLATE6
+    fs_write("export/index.html", index_html)
     return index
 
 def dl_art(url, i):
@@ -166,15 +174,14 @@ def process_songs(headers, index):
                 song_html += "<li>" + album + "</li>"
                 song_html += "<li>" + artists + "</li>"
                 song_html += "<li>" + date_added + "</li>"
-                song_html += "</ul>"
+                song_html += "</ul>\n"
                 playlist[4] += song_html
 
                 j += 1
             cycle += 1
         print()
         playlist[4] += TEMPLATE4
-        file_path = os.path.join("export", "playlists", str(playlist[5]) + ".html")
-        fs_write(file_path, playlist[4])
+        fs_write("export/playlists/" + str(playlist[5]) + ".html", playlist[4])
 
 TEMPLATE1 = """
 <!DOCTYPE html>
@@ -183,7 +190,7 @@ TEMPLATE1 = """
 """
 # title goes here
 TEMPLATE2 = """
-        <link rel="stylesheet" href="../css/playlist.css">
+        <link rel="stylesheet" href="../main.css">
     </head>
     <body>
         <div id="header">
@@ -207,7 +214,20 @@ TEMPLATE4 = """
 </html>
 """
 
-PLAYLIST_CSS = """
+# index.html
+TEMPLATE5 = """
+    </head>
+    <body>
+        <ul id="index">
+"""
+# list of playlists
+TEMPLATE6 = """
+        </ul>
+    </body>
+</html>
+"""
+
+CSS = """
 body {
     font-family: helvetica, sans-serif;
     letter-spacing: 0.02rem;
@@ -216,16 +236,48 @@ body {
     color: #1a1a2e;
 }
 
+#index li {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    margin-bottom: 2rem;
+}
+
+#index li:last-child {
+    margin-bottom: 0;
+}
+
+#index a {
+    transform: translateY(-30px);
+    display: inline-block;
+    color: #1a1a2e;
+    font-weight: bold;
+    font-size: 1.3rem;
+    text-decoration: none;
+}
+
+#index a:visited, #index a:link {
+    color: #1a1a2e;
+}
+
+#index img {
+    width: 75px;
+    height: 75px;
+    margin-right: 1.5rem;
+}
+
 #art {
     display: inline-block;
-    width: 200px;
-    height: 200px;
+    margin-right: 1rem;
+    width: 150px;
+    height: 150px;
 }
 
 #header #title-desc {
     display: inline-block;
     margin-left: 2rem;
     margin-bottom: 1rem;
+    transform: translateY(-60px);
 }
 
 #header #title-desc h1 {
