@@ -236,6 +236,11 @@ body {
     color: #1a1a2e;
 }
 
+#index {
+    margin: 0;
+    padding: 0;
+}
+
 #index li {
     list-style-type: none;
     margin: 0;
